@@ -2,7 +2,6 @@ import {v2 as cloudinary} from 'cloudinary';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import {ApiError} from "./apiError.js";
-import {response} from "express";
 dotenv.config({path: '.env'});
 
 cloudinary.config({
@@ -17,7 +16,7 @@ const uploadOnCloudinary = async (localFilePath) => {
             return null;
         }
         const response = await cloudinary.uploader.upload(localFilePath, {
-            response_type: 'auto',
+            resource_type: 'auto',
         });
 
         fs.unlinkSync(localFilePath);
@@ -39,12 +38,10 @@ const deleteFromCloudinary = async (fileUrl) => {
         const match = fileUrl.match(regex);
         if (match && match[1]) {
             const publicId = match[1];
-            const result = await cloudinary.uploader.destroy(publicId)
+            await cloudinary.uploader.destroy(publicId)
         } else {
             throw new ApiError(400, "PublicId not found");
         }
-
-        return response;
 
     } catch (err) {
         throw new ApiError(400, "error while deleting the file.");

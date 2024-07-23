@@ -6,6 +6,10 @@ const videoSchema = new mongoose.Schema({
         type: String, //url from third-party
         required: true,
     },
+    playbackUrl:{
+        type: String, //url from third-party
+        required: true,
+    },
     thumbnail: {
         type: String, //url from third-party
         required: true,
