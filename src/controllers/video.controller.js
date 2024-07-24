@@ -2,8 +2,8 @@ import {ApiError} from "../utils/apiError.js";
 import {ApiResponse} from "../utils/apiResponse.js";
 import {asyncHandler} from "../utils/asyncHandler.js";
 import {deleteFromCloudinary, uploadOnCloudinary} from "../utils/cloudinary.js";
-import {Comment} from "../models/comment.models.js";
-import {Like} from "../models/like.models.js";
+import {deleteNestedVideoComment} from "../utils/deleteNestedItems.js";
+import {isValidObjectId, validateAssetOwnership} from "../utils/validate.js";
 import {Playlist} from "../models/playlist.models.js";
 import {User} from "../models/user.models.js";
 import {Video} from "../models/video.models.js";
@@ -52,8 +52,8 @@ const publishVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
     const {videoId} = req.params;
-    if (!videoId) {
-        throw new ApiError(404, "Invalid video request");
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(404, "Invalid video Id");
     }
 
     //find a video and update views if available
@@ -83,8 +83,8 @@ const updateVideoDetails = asyncHandler(async (req, res) => {
     const {title, description} = req.body;
     let thumbnail;
 
-    if (!videoId) {
-        throw new ApiError(400, "VideoId is required to update video details.")
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "VideoId is invalid or empty.")
     }
 
     if (req.file) {
@@ -104,7 +104,7 @@ const updateVideoDetails = asyncHandler(async (req, res) => {
     if (!video) {
         throw new ApiError(404, "Video not found");
     }
-    if (!video.owner._id.equals(req.user?._id)) {
+    if (!validateAssetOwnership(video.owner._id, req.user?._id)) {
         throw new ApiError(401, "Unauthorized request for video details update");
     }
 
@@ -115,15 +115,15 @@ const updateVideoDetails = asyncHandler(async (req, res) => {
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const {videoId} = req.params;
-    if (!videoId) {
-        throw new ApiError(401, "videoId is required to delete video.");
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(401, "videoId is invalid or empty.");
     }
 
     const video = await Video.findById(videoId);
     if (!video) {
         throw new ApiError(404, "Video doesn't exist");
     }
-    if (!video.owner?._id.equals(req.user?._id)) {
+    if (!validateAssetOwnership(video.owner?._id, req.user?._id)) {
         throw new ApiError(401, "Unauthorized request for video deletion.");
     }
 
@@ -133,8 +133,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
     await deleteFromCloudinary(video.thumbnail);
 
     // deleting likes, comment, and remove video from playlist
-    await Like.deleteMany({video: videoId});
-    await Comment.deleteMany({video: videoId});
+    await deleteNestedVideoComment(videoId);
     const playlists = await Playlist.find({videos: videoId});
     for (const playlist of playlists) {
         await Playlist.findByIdAndUpdate(playlist._id, {$pull: {videos: videoId}}, {new: true});
@@ -145,12 +144,15 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const {videoId} = req.params;
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(401, "Video id is invalid or empty.");
+    }
 
     const video = await Video.findById(videoId);
     if (!video) {
         throw new ApiError(404, "Video not found.")
     }
-    if (!video.owner?._id.equals(req.user?._id)) {
+    if (!validateAssetOwnership(video.owner?._id, req.user?._id)) {
         throw new ApiError(401, "Unauthorized request.");
     }
 
