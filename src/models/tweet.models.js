@@ -5,6 +5,10 @@ const tweetSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    parentTweet: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Tweet',
+    },
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
